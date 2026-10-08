@@ -141,3 +141,77 @@ class Correlacion:
         if den == 0:
             return 0.0
         return num / den
+
+
+class Histograma:
+    def __init__(self, minimo, maximo, k=8):
+        self.minimo = minimo
+        self.maximo = maximo
+        self.k = k
+        self.ancho = (maximo - minimo) / k
+        self.cuentas = [0] * k
+
+    def agregar(self, x):
+        if self.ancho == 0:
+            pos = 0
+        else:
+            pos = int((x - self.minimo) / self.ancho)
+        if pos >= self.k:
+            pos = self.k - 1
+        if pos < 0:
+            pos = 0
+        self.cuentas[pos] += 1
+
+    def intervalos(self):
+        lista = []
+        for i in range(self.k):
+            ini = self.minimo + i * self.ancho
+            fin = self.minimo + (i + 1) * self.ancho
+            lista.append((ini, fin, self.cuentas[i]))
+        return lista
+
+
+class Embudo:
+    def __init__(self):
+        self.finales = {}
+        self.total = 0
+
+    def agregar(self, nivel_final):
+        nivel = int(nivel_final)
+        if nivel in self.finales:
+            self.finales[nivel] += 1
+        else:
+            self.finales[nivel] = 1
+        self.total += 1
+
+    def tabla(self):
+        if self.total == 0:
+            return []
+        nivel_max = max(self.finales)
+        filas = []
+        anterior = None
+        for nivel in range(1, nivel_max + 1):
+            alcanz = 0
+            for n_fin, c in self.finales.items():
+                if n_fin >= nivel:
+                    alcanz += c
+            superv = alcanz * 100 / self.total
+            if anterior is None or anterior == 0:
+                aband = None
+            else:
+                aband = (anterior - alcanz) * 100 / anterior
+            filas.append((nivel, alcanz, superv, aband))
+            anterior = alcanz
+        return filas
+
+
+class PorDificultad:
+    def __init__(self):
+        self.grupos = {"easy": Descriptivas(), "hard": Descriptivas()}
+
+    def agregar(self, dificultad, puntaje):
+        if dificultad in self.grupos:
+            self.grupos[dificultad].agregar(puntaje)
+
+    def diferencia(self):
+        return self.grupos["easy"].media() - self.grupos["hard"].media()
