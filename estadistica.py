@@ -86,3 +86,58 @@ def atipicos_z(datos, umbral=3):
         if abs(puntaje_z(x, d.media(), d.desv())) > umbral:
             lista.append(x)
     return lista
+
+
+def por_frecuencia(par):
+    return par[1]
+
+
+class Frecuencias:
+    def __init__(self):
+        self.cuentas = {}
+        self.total = 0
+
+    def agregar(self, valor):
+        if valor in self.cuentas:
+            self.cuentas[valor] += 1
+        else:
+            self.cuentas[valor] = 1
+        self.total += 1
+
+    def tabla(self):
+        filas = []
+        acum = 0
+        orden = sorted(self.cuentas.items(), key=por_frecuencia, reverse=True)
+        for valor, f in orden:
+            acum += f
+            filas.append((valor, f, f * 100 / self.total, acum * 100 / self.total))
+        return filas
+
+    def moda(self):
+        return self.tabla()[0][0]
+
+
+class Correlacion:
+    def __init__(self):
+        self.n = 0
+        self.sx = 0.0
+        self.sy = 0.0
+        self.sxy = 0.0
+        self.sxx = 0.0
+        self.syy = 0.0
+
+    def agregar(self, x, y):
+        self.n += 1
+        self.sx += x
+        self.sy += y
+        self.sxy += x * y
+        self.sxx += x * x
+        self.syy += y * y
+
+    def r(self):
+        num = self.n * self.sxy - self.sx * self.sy
+        den = math.sqrt((self.n * self.sxx - self.sx ** 2) *
+                        (self.n * self.syy - self.sy ** 2))
+        if den == 0:
+            return 0.0
+        return num / den
