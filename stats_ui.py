@@ -8,6 +8,7 @@ ANCHO = 800
 ALTO = 450
 PESTANAS = ["Resumen", "Distribucion", "Relacion"]
 VARIABLES = ["Puntaje", "Duracion", "Dano recibido"]
+PARES = [("Duracion (s)", "Puntaje"), ("Dano recibido", "Nivel alcanzado")]
 X0 = 80
 W = 680
 
@@ -67,6 +68,23 @@ def px(v, minimo, rango):
     return X0 + (v - minimo) / rango * W
 
 
+def interpretar(r):
+    a = abs(r)
+    if a < 0.2:
+        return "Correlacion muy debil o nula: casi no hay relacion lineal"
+    if a < 0.4:
+        fuerza = "debil"
+    elif a < 0.6:
+        fuerza = "moderada"
+    elif a < 0.8:
+        fuerza = "fuerte"
+    else:
+        fuerza = "muy fuerte"
+    if r > 0:
+        return f"Correlacion {fuerza} positiva: si una sube, la otra tiende a subir"
+    return f"Correlacion {fuerza} negativa: si una sube, la otra tiende a bajar"
+
+
 def dibujar_distribucion(pant, fuente, fuente_p, res):
     if res["hist"] is None or "cuart" not in res:
         img = fuente.render("Se necesitan al menos 4 sesiones terminadas",
@@ -87,7 +105,6 @@ def dibujar_distribucion(pant, fuente, fuente_p, res):
     y_base = 235
     alto = 135
 
-    # barras del histograma
     for ini, fin, c in ints:
         x1 = px(ini, minimo, rango)
         x2 = px(fin, minimo, rango)
@@ -101,7 +118,6 @@ def dibujar_distribucion(pant, fuente, fuente_p, res):
     e = fuente_p.render(fmt(maximo), True, (180, 180, 200))
     pant.blit(e, (int(px(maximo, minimo, rango)) - e.get_width() // 2, y_base + 6))
 
-    # ejes y rotulos
     pygame.draw.line(pant, (200, 200, 200), (X0, y_base), (X0 + W, y_base), 2)
     pygame.draw.line(pant, (200, 200, 200), (X0, y_base - alto - 10), (X0, y_base), 2)
     t = fuente_p.render("Sesiones", True, (180, 180, 200))
@@ -113,7 +129,6 @@ def dibujar_distribucion(pant, fuente, fuente_p, res):
     t = fuente_p.render("Puntaje", True, (180, 180, 200))
     pant.blit(t, (X0 + W // 2 - t.get_width() // 2, y_base + 22))
 
-    # diagrama de caja y bigotes, con la misma escala horizontal
     q1, q2, q3 = res["cuart"]
     lim_inf, lim_sup, atip = res["iqr"]
     dentro = []
@@ -152,6 +167,67 @@ def dibujar_distribucion(pant, fuente, fuente_p, res):
     pant.blit(t, (X0, 362))
 
 
+def dibujar_relacion(pant, fuente_t, fuente_p, res, par):
+    if par == 0:
+        pares = res["pares1"]
+        corr = res["r1"]
+    else:
+        pares = res["pares2"]
+        corr = res["r2"]
+    nom_x, nom_y = PARES[par]
+    if corr.n < 2 or len(pares) < 2:
+        img = fuente_t.render("Se necesitan al menos 2 sesiones terminadas",
+                              True, (200, 200, 200))
+        pant.blit(img, (50, 130))
+        return
+
+    xmin = pares[0][0]
+    xmax = pares[0][0]
+    ymin = pares[0][1]
+    ymax = pares[0][1]
+    for x, y in pares:
+        xmin = min(xmin, x)
+        xmax = max(xmax, x)
+        ymin = min(ymin, y)
+        ymax = max(ymax, y)
+    rx = xmax - xmin
+    ry = ymax - ymin
+    if rx == 0:
+        rx = 1
+    if ry == 0:
+        ry = 1
+
+    gx = 90
+    gy = 120
+    gw = 650
+    gh = 200
+    pygame.draw.line(pant, (200, 200, 200), (gx, gy + gh), (gx + gw, gy + gh), 2)
+    pygame.draw.line(pant, (200, 200, 200), (gx, gy), (gx, gy + gh), 2)
+    for x, y in pares:
+        cx = gx + (x - xmin) / rx * gw
+        cy = gy + gh - (y - ymin) / ry * gh
+        pygame.draw.circle(pant, (60, 140, 255), (int(cx), int(cy)), 4)
+
+    t = fuente_p.render(fmt(xmin), True, (180, 180, 200))
+    pant.blit(t, (gx - t.get_width() // 2, gy + gh + 6))
+    t = fuente_p.render(fmt(xmax), True, (180, 180, 200))
+    pant.blit(t, (gx + gw - t.get_width() // 2, gy + gh + 6))
+    t = fuente_p.render(nom_x, True, (180, 180, 200))
+    pant.blit(t, (gx + gw // 2 - t.get_width() // 2, gy + gh + 6))
+    t = fuente_p.render(fmt(ymax), True, (180, 180, 200))
+    pant.blit(t, (gx - t.get_width() - 6, gy - 4))
+    t = fuente_p.render(fmt(ymin), True, (180, 180, 200))
+    pant.blit(t, (gx - t.get_width() - 6, gy + gh - 12))
+    t = fuente_p.render(nom_y, True, (180, 180, 200))
+    pant.blit(t, (10, gy - 22))
+
+    r = corr.r()
+    t = fuente_t.render(f"r = {r:.4f}      n = {corr.n} sesiones", True, (255, 220, 80))
+    pant.blit(t, (gx, 350))
+    t = fuente_p.render(interpretar(r), True, (255, 255, 255))
+    pant.blit(t, (gx, 376))
+
+
 async def pantalla_stats(pant, carpeta):
     reloj = pygame.time.Clock()
     fuente = pygame.font.Font(None, 32)
@@ -160,6 +236,7 @@ async def pantalla_stats(pant, carpeta):
     res = analizar(carpeta)
     pestana = 0
     var = 0
+    par = 0
     ver_calidad = False
 
     r_tabs = []
@@ -180,8 +257,11 @@ async def pantalla_stats(pant, carpeta):
                     for i, r in enumerate(r_tabs):
                         if r.collidepoint(ev.pos):
                             pestana = i
-                    if pestana == 0 and r_var.collidepoint(ev.pos):
-                        var = (var + 1) % 3
+                    if r_var.collidepoint(ev.pos):
+                        if pestana == 0:
+                            var = (var + 1) % 3
+                        elif pestana == 2:
+                            par = (par + 1) % 2
                     if r_cal.collidepoint(ev.pos):
                         ver_calidad = True
                     if r_volver.collidepoint(ev.pos):
@@ -197,7 +277,10 @@ async def pantalla_stats(pant, carpeta):
                 elif ev.key == pygame.K_LEFT:
                     pestana = (pestana - 1) % 3
                 elif ev.key == pygame.K_v:
-                    var = (var + 1) % 3
+                    if pestana == 2:
+                        par = (par + 1) % 2
+                    else:
+                        var = (var + 1) % 3
                 elif ev.key == pygame.K_c:
                     ver_calidad = not ver_calidad
 
@@ -218,8 +301,9 @@ async def pantalla_stats(pant, carpeta):
             pant.blit(t, (30, 60))
             dibujar_distribucion(pant, fuente, fuente_p, res)
         else:
-            img = fuente.render("(en construccion)", True, (200, 200, 200))
-            pant.blit(img, (50, 120))
+            boton(pant, fuente_t, r_var,
+                  f"{PARES[par][0]} vs {PARES[par][1]}   >")
+            dibujar_relacion(pant, fuente_t, fuente_p, res, par)
 
         boton(pant, fuente_t, r_cal, "Calidad de datos")
         boton(pant, fuente_t, r_volver, "Volver")
