@@ -5,6 +5,8 @@ from estadistica import (Descriptivas, Frecuencias, Correlacion, Embudo,
                          PorDificultad, Histograma, cuartiles, percentil,
                          atipicos_iqr, atipicos_z)
 
+MAX_PTS = 500
+
 
 def analizar(carpeta):
     rep = {}
@@ -19,6 +21,8 @@ def analizar(carpeta):
     puntajes = []   # estas tres listas las piden la mediana y los cuartiles
     dur_l = []
     dano_l = []
+    pares1 = []     # muestra de puntos para dibujar, maximo MAX_PTS
+    pares2 = []
     dif_de = {}     # dificultad de las sesiones abiertas
     dano_de = {}    # dano acumulado de las sesiones abiertas
 
@@ -47,10 +51,14 @@ def analizar(carpeta):
                 dur_l.append(p["duration"])
                 embudo.agregar(p["level"])
                 r_dur_punt.agregar(p["duration"], p["score"])
+                if len(pares1) < MAX_PTS:
+                    pares1.append((p["duration"], p["score"]))
                 if ses in dif_de:
                     por_dif.agregar(dif_de[ses], p["score"])
                 if ses in dano_de:
                     r_dano_niv.agregar(dano_de[ses], p["level"])
+                    if len(pares2) < MAX_PTS:
+                        pares2.append((dano_de[ses], p["level"]))
             dif_de.pop(ses, None)
             dano_de.pop(ses, None)
 
@@ -67,7 +75,8 @@ def analizar(carpeta):
     res = {"rep": rep, "punt": d_punt, "dur": d_dur, "dano": d_dano,
            "causas": causas, "embudo": embudo, "dif": por_dif,
            "r1": r_dur_punt, "r2": r_dano_niv, "hist": hist,
-           "puntajes": puntajes, "dur_l": dur_l, "dano_l": dano_l}
+           "puntajes": puntajes, "dur_l": dur_l, "dano_l": dano_l,
+           "pares1": pares1, "pares2": pares2}
     if len(puntajes) >= 4:
         res["cuart"] = cuartiles(puntajes)
         res["p90"] = percentil(puntajes, 90)
