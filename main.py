@@ -10,6 +10,7 @@ pant = pygame.display.set_mode((ANCHO, ALTO))
 pygame.display.set_caption("Megaman")
 reloj = pygame.time.Clock()
 fuente = pygame.font.Font(None, 28)
+fuente_g = pygame.font.Font(None, 64)
 
 jug = pygame.Rect(100, SUELO - 50, 36, 50)
 vel = 5
@@ -17,6 +18,11 @@ vel_y = 0.0
 grav = 0.8
 fuerza_salto = -15
 en_suelo = True
+
+vida_max = 5
+vida = vida_max
+inmune = 0
+dano_total = 0
 
 balas = []
 vel_bala = 12
@@ -26,14 +32,48 @@ enemigos = []
 t_spawn = 0
 puntaje = 0
 
+estado = "jugando"
+causa = ""
+dur = 0.0
+t_ini = pygame.time.get_ticks()
+
 corriendo = True
 while corriendo:
     for ev in pygame.event.get():
         if ev.type == pygame.QUIT:
             corriendo = False
-        if ev.type == pygame.KEYDOWN and ev.key == pygame.K_SPACE and en_suelo:
-            vel_y = fuerza_salto
-            en_suelo = False
+        if ev.type == pygame.KEYDOWN:
+            if ev.key == pygame.K_SPACE and en_suelo and estado == "jugando":
+                vel_y = fuerza_salto
+                en_suelo = False
+            if ev.key == pygame.K_r and estado == "muerto":
+                jug.x = 100
+                jug.bottom = SUELO
+                vel_y = 0.0
+                balas = []
+                enemigos = []
+                puntaje = 0
+                vida = vida_max
+                inmune = 0
+                dano_total = 0
+                t_spawn = 0
+                estado = "jugando"
+                t_ini = pygame.time.get_ticks()
+
+    if estado == "muerto":
+        pant.fill((20, 20, 40))
+        lineas = [("GAME OVER", fuente_g), (f"Puntaje: {puntaje}", fuente),
+                  (f"Causa de muerte: {causa}", fuente),
+                  (f"Tiempo: {dur:.1f} s", fuente),
+                  ("Presiona R para reiniciar", fuente)]
+        y = 110
+        for txt, fte in lineas:
+            img = fte.render(txt, True, (255, 255, 255))
+            pant.blit(img, (ANCHO // 2 - img.get_width() // 2, y))
+            y += 55
+        pygame.display.flip()
+        reloj.tick(60)
+        continue
 
     teclas = pygame.key.get_pressed()
     if teclas[pygame.K_a]:
@@ -71,7 +111,6 @@ while corriendo:
             vivas.append(b)
     balas = vivas
 
-    # aparecen enemigos cada 90 vueltas (1.5 segundos)
     t_spawn += 1
     if t_spawn >= 90:
         t_spawn = 0
@@ -83,14 +122,12 @@ while corriendo:
             enemigos.append({"tipo": "dron", "vel": 3, "muerto": False,
                              "r": pygame.Rect(lado, random.randint(120, 300), 30, 24)})
 
-    # los enemigos caminan hacia el jugador
     for e in enemigos:
         if e["r"].centerx < jug.centerx:
             e["r"].x += e["vel"]
         else:
             e["r"].x -= e["vel"]
 
-    # choque de balas con enemigos
     for b in balas:
         r_bala = pygame.Rect(b["x"] - 5, b["y"] - 5, 10, 10)
         for e in enemigos:
@@ -100,6 +137,20 @@ while corriendo:
                 puntaje += 100
                 break
 
+    if inmune > 0:
+        inmune -= 1
+    for e in enemigos:
+        if not e["muerto"] and inmune == 0 and jug.colliderect(e["r"]):
+            e["muerto"] = True
+            vida -= 1
+            dano_total += 1
+            inmune = 60
+            if vida <= 0:
+                causa = e["tipo"]
+                dur = (pygame.time.get_ticks() - t_ini) / 1000
+                estado = "muerto"
+            break
+
     restantes = []
     for e in enemigos:
         if not e["muerto"]:
@@ -108,7 +159,8 @@ while corriendo:
 
     pant.fill((20, 20, 40))
     pygame.draw.rect(pant, (60, 60, 80), (0, SUELO, ANCHO, ALTO - SUELO))
-    pygame.draw.rect(pant, (60, 140, 255), jug)
+    if inmune == 0 or (inmune // 4) % 2 == 0:
+        pygame.draw.rect(pant, (60, 140, 255), jug)
     pygame.draw.line(pant, (255, 220, 80), (cx, cy), punta, 8)
     for b in balas:
         pygame.draw.circle(pant, (255, 240, 120), (int(b["x"]), int(b["y"])), 5)
@@ -117,6 +169,9 @@ while corriendo:
             pygame.draw.rect(pant, (220, 60, 60), e["r"])
         else:
             pygame.draw.rect(pant, (240, 150, 50), e["r"])
+    for i in range(vida_max):
+        color = (80, 220, 120) if i < vida else (70, 70, 70)
+        pygame.draw.rect(pant, color, (10 + i * 28, 40, 24, 12))
     texto = fuente.render(f"Puntaje: {puntaje}", True, (255, 255, 255))
     pant.blit(texto, (10, 10))
     pygame.display.flip()
