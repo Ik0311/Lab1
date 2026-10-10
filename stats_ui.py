@@ -41,19 +41,53 @@ def lineas_calidad(rep):
             f"Sesiones incompletas: {rep.get('incompletas', 0)}"]
 
 
+def boton(pant, fuente, rect, texto, activo=False):
+    pos = pygame.mouse.get_pos()
+    if activo:
+        color = (60, 140, 255)
+    elif rect.collidepoint(pos):
+        color = (80, 80, 130)
+    else:
+        color = (50, 50, 85)
+    pygame.draw.rect(pant, color, rect)
+    img = fuente.render(texto, True, (255, 255, 255))
+    pant.blit(img, (rect.centerx - img.get_width() // 2,
+                    rect.centery - img.get_height() // 2))
+
+
 async def pantalla_stats(pant, carpeta):
     reloj = pygame.time.Clock()
     fuente = pygame.font.Font(None, 32)
-    fuente_p = pygame.font.Font(None, 22)
     fuente_t = pygame.font.Font(None, 28)
     res = analizar(carpeta)
     pestana = 0
     var = 0
     ver_calidad = False
+
+    r_tabs = []
+    for i in range(3):
+        r_tabs.append(pygame.Rect(20 + i * 170, 15, 160, 34))
+    r_var = pygame.Rect(30, 65, 330, 36)
+    r_cal = pygame.Rect(20, 400, 220, 36)
+    r_volver = pygame.Rect(ANCHO - 180, 400, 160, 36)
+
     while True:
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
                 return
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                if ver_calidad:
+                    ver_calidad = False
+                else:
+                    for i, r in enumerate(r_tabs):
+                        if r.collidepoint(ev.pos):
+                            pestana = i
+                    if pestana == 0 and r_var.collidepoint(ev.pos):
+                        var = (var + 1) % 3
+                    if r_cal.collidepoint(ev.pos):
+                        ver_calidad = True
+                    if r_volver.collidepoint(ev.pos):
+                        return
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_ESCAPE:
                     if ver_calidad:
@@ -71,28 +105,21 @@ async def pantalla_stats(pant, carpeta):
 
         pant.fill((20, 20, 40))
         for i, nombre in enumerate(PESTANAS):
-            r = pygame.Rect(20 + i * 170, 15, 160, 34)
-            color = (60, 140, 255) if i == pestana else (60, 60, 90)
-            pygame.draw.rect(pant, color, r)
-            img = fuente_t.render(nombre, True, (255, 255, 255))
-            pant.blit(img, (r.centerx - img.get_width() // 2, r.y + 8))
+            boton(pant, fuente_t, r_tabs[i], nombre, i == pestana)
 
         if pestana == 0:
-            t = fuente.render(f"Variable: {VARIABLES[var]}", True, (255, 220, 80))
-            pant.blit(t, (30, 75))
-            y = 120
+            boton(pant, fuente_t, r_var, f"Variable: {VARIABLES[var]}   >")
+            y = 115
             for txt in lineas_resumen(res, var):
                 img = fuente.render(txt, True, (255, 255, 255))
                 pant.blit(img, (50, y))
-                y += 36
+                y += 32
         else:
             img = fuente.render("(en construccion)", True, (200, 200, 200))
             pant.blit(img, (50, 120))
 
-        ayuda = fuente_p.render(
-            "Izq/der: pestana   V: variable   C: calidad de datos   Esc: volver",
-            True, (150, 150, 170))
-        pant.blit(ayuda, (20, ALTO - 28))
+        boton(pant, fuente_t, r_cal, "Calidad de datos")
+        boton(pant, fuente_t, r_volver, "Volver")
 
         if ver_calidad:
             panel = pygame.Rect(120, 90, 560, 250)
