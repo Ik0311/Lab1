@@ -8,6 +8,8 @@ ANCHO = 800
 ALTO = 450
 PESTANAS = ["Resumen", "Distribucion", "Relacion"]
 VARIABLES = ["Puntaje", "Duracion", "Dano recibido"]
+X0 = 80
+W = 680
 
 
 def lineas_resumen(res, i):
@@ -55,10 +57,106 @@ def boton(pant, fuente, rect, texto, activo=False):
                     rect.centery - img.get_height() // 2))
 
 
+def fmt(v):
+    if abs(v) >= 1000:
+        return f"{v / 1000:.1f}k"
+    return f"{v:.0f}"
+
+
+def px(v, minimo, rango):
+    return X0 + (v - minimo) / rango * W
+
+
+def dibujar_distribucion(pant, fuente, fuente_p, res):
+    if res["hist"] is None or "cuart" not in res:
+        img = fuente.render("Se necesitan al menos 4 sesiones terminadas",
+                            True, (200, 200, 200))
+        pant.blit(img, (50, 120))
+        return
+    ints = res["hist"].intervalos()
+    minimo = ints[0][0]
+    maximo = ints[-1][1]
+    rango = maximo - minimo
+    if rango == 0:
+        rango = 1
+
+    c_max = 1
+    for ini, fin, c in ints:
+        if c > c_max:
+            c_max = c
+    y_base = 235
+    alto = 135
+
+    # barras del histograma
+    for ini, fin, c in ints:
+        x1 = px(ini, minimo, rango)
+        x2 = px(fin, minimo, rango)
+        h = int(alto * c / c_max)
+        r = pygame.Rect(int(x1) + 1, y_base - h, int(x2 - x1) - 2, h)
+        pygame.draw.rect(pant, (60, 140, 255), r)
+        t = fuente_p.render(str(c), True, (255, 255, 255))
+        pant.blit(t, (r.centerx - t.get_width() // 2, y_base - h - 16))
+        e = fuente_p.render(fmt(ini), True, (180, 180, 200))
+        pant.blit(e, (int(x1) - e.get_width() // 2, y_base + 6))
+    e = fuente_p.render(fmt(maximo), True, (180, 180, 200))
+    pant.blit(e, (int(px(maximo, minimo, rango)) - e.get_width() // 2, y_base + 6))
+
+    # ejes y rotulos
+    pygame.draw.line(pant, (200, 200, 200), (X0, y_base), (X0 + W, y_base), 2)
+    pygame.draw.line(pant, (200, 200, 200), (X0, y_base - alto - 10), (X0, y_base), 2)
+    t = fuente_p.render("Sesiones", True, (180, 180, 200))
+    pant.blit(t, (10, y_base - alto - 10))
+    t = fuente_p.render(str(c_max), True, (180, 180, 200))
+    pant.blit(t, (X0 - t.get_width() - 6, y_base - alto - 4))
+    t = fuente_p.render("0", True, (180, 180, 200))
+    pant.blit(t, (X0 - t.get_width() - 6, y_base - 14))
+    t = fuente_p.render("Puntaje", True, (180, 180, 200))
+    pant.blit(t, (X0 + W // 2 - t.get_width() // 2, y_base + 22))
+
+    # diagrama de caja y bigotes, con la misma escala horizontal
+    q1, q2, q3 = res["cuart"]
+    lim_inf, lim_sup, atip = res["iqr"]
+    dentro = []
+    for x in res["puntajes"]:
+        if lim_inf <= x <= lim_sup:
+            dentro.append(x)
+    if len(dentro) > 0:
+        bajo = min(dentro)
+        alto_b = max(dentro)
+    else:
+        bajo = q1
+        alto_b = q3
+    yc = 305
+    xb = px(bajo, minimo, rango)
+    x1 = px(q1, minimo, rango)
+    xm = px(q2, minimo, rango)
+    x3 = px(q3, minimo, rango)
+    xa = px(alto_b, minimo, rango)
+    pygame.draw.line(pant, (200, 200, 200), (xb, yc), (x1, yc), 2)
+    pygame.draw.line(pant, (200, 200, 200), (x3, yc), (xa, yc), 2)
+    pygame.draw.line(pant, (200, 200, 200), (xb, yc - 8), (xb, yc + 8), 2)
+    pygame.draw.line(pant, (200, 200, 200), (xa, yc - 8), (xa, yc + 8), 2)
+    caja = pygame.Rect(int(x1), yc - 14, int(x3 - x1), 28)
+    pygame.draw.rect(pant, (45, 45, 90), caja)
+    pygame.draw.rect(pant, (255, 220, 80), caja, 2)
+    pygame.draw.line(pant, (255, 100, 100), (xm, yc - 14), (xm, yc + 14), 3)
+    for o in atip:
+        pygame.draw.circle(pant, (255, 100, 220), (int(px(o, minimo, rango)), yc), 5)
+
+    txt = (f"Q1={q1:.0f}   Mediana={q2:.0f}   Q3={q3:.0f}   "
+           f"IQR={q3 - q1:.0f}   Atipicos (IQR): {len(atip)}")
+    t = fuente_p.render(txt, True, (255, 255, 255))
+    pant.blit(t, (X0, 340))
+    t = fuente_p.render("Linea roja = mediana.  Puntos rosados = valores atipicos.",
+                        True, (150, 150, 170))
+    pant.blit(t, (X0, 362))
+
+
 async def pantalla_stats(pant, carpeta):
     reloj = pygame.time.Clock()
     fuente = pygame.font.Font(None, 32)
     fuente_t = pygame.font.Font(None, 28)
+    fuente_p = pygame.font.Font(None, 20)
     res = analizar(carpeta)
     pestana = 0
     var = 0
@@ -114,6 +212,11 @@ async def pantalla_stats(pant, carpeta):
                 img = fuente.render(txt, True, (255, 255, 255))
                 pant.blit(img, (50, y))
                 y += 32
+        elif pestana == 1:
+            t = fuente_t.render("Distribucion del puntaje (8 intervalos)",
+                                True, (255, 220, 80))
+            pant.blit(t, (30, 60))
+            dibujar_distribucion(pant, fuente, fuente_p, res)
         else:
             img = fuente.render("(en construccion)", True, (200, 200, 200))
             pant.blit(img, (50, 120))
