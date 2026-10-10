@@ -1,6 +1,9 @@
 import math
 import random
+import time
 import pygame
+
+from telemetria import EscritorBitacora
 
 pygame.init()
 ANCHO = 800
@@ -11,6 +14,17 @@ pygame.display.set_caption("Megaman")
 reloj = pygame.time.Clock()
 fuente = pygame.font.Font(None, 28)
 fuente_g = pygame.font.Font(None, 64)
+
+N_BUF = 10
+JUGADOR = "jugador"
+DIFICULTAD = "normal"
+DANO = {"robot": 20, "dron": 15, "disparo_dron": 10}
+
+esc = EscritorBitacora("logs", n_buf=N_BUF)
+
+
+def nueva_id():
+    return "S" + str(int(time.time()))
 
 
 def total_nivel(n):
@@ -35,7 +49,7 @@ dash_t = 0
 dash_cd = 0
 dash_dir = 1
 
-vida_max = 5
+vida_max = 100
 vida = vida_max
 inmune = 0
 dano_total = 0
@@ -57,6 +71,9 @@ estado = "jugando"
 causa = ""
 dur = 0.0
 t_ini = pygame.time.get_ticks()
+
+id_ses = nueva_id()
+esc.registrar(id_ses, "SESSION_START", player=JUGADOR, difficulty=DIFICULTAD)
 
 corriendo = True
 while corriendo:
@@ -100,6 +117,9 @@ while corriendo:
                 t_aviso = 120
                 estado = "jugando"
                 t_ini = pygame.time.get_ticks()
+                id_ses = nueva_id()
+                esc.registrar(id_ses, "SESSION_START", player=JUGADOR,
+                              difficulty=DIFICULTAD)
 
     if estado == "muerto":
         pant.fill((20, 20, 40))
@@ -207,6 +227,7 @@ while corriendo:
                 e["muerto"] = True
                 b["x"] = -100
                 puntaje += 100
+                esc.registrar(id_ses, "ENEMY_KILL", type=e["tipo"], wave=nivel)
                 break
 
     if inmune > 0:
@@ -225,13 +246,18 @@ while corriendo:
                     golpe = "disparo_dron"
                     break
     if golpe != "":
-        vida -= 1
-        dano_total += 1
+        dano = DANO[golpe]
+        vida -= dano
+        dano_total += dano
         inmune = 60
+        esc.registrar(id_ses, "DAMAGE_TAKEN", amount=dano, source=golpe)
         if vida <= 0:
             causa = golpe
             dur = (pygame.time.get_ticks() - t_ini) / 1000
             estado = "muerto"
+            esc.registrar(id_ses, "PLAYER_DEATH", cause=causa, level=nivel)
+            esc.registrar(id_ses, "SESSION_END", score=puntaje, level=nivel,
+                          duration=round(dur, 1), result="death")
 
     restantes = []
     for e in enemigos:
@@ -246,6 +272,8 @@ while corriendo:
         por_salir = total_nivel(nivel)
         t_spawn = 0
         t_aviso = 120
+        seg = (pygame.time.get_ticks() - t_ini) / 1000
+        esc.registrar(id_ses, "LEVEL_UP", level=nivel, time=round(seg, 1))
 
     pant.fill((20, 20, 40))
     pygame.draw.rect(pant, (60, 60, 80), (0, SUELO, ANCHO, ALTO - SUELO))
@@ -263,11 +291,11 @@ while corriendo:
             pygame.draw.rect(pant, (240, 150, 50), e["r"])
     for s in disp_en:
         pygame.draw.rect(pant, (255, 100, 220), s["r"])
-    for i in range(vida_max):
-        color = (80, 220, 120) if i < vida else (70, 70, 70)
-        pygame.draw.rect(pant, color, (10 + i * 28, 40, 24, 12))
+    pygame.draw.rect(pant, (70, 70, 70), (10, 40, 140, 12))
+    ancho_vida = int(140 * max(0, vida) / vida_max)
+    pygame.draw.rect(pant, (80, 220, 120), (10, 40, ancho_vida, 12))
     pygame.draw.rect(pant, (70, 70, 70), (10, 58, 140, 8))
-    carga = 140 * (1 - dash_cd / DASH_ESPERA)
+    carga = int(140 * (1 - dash_cd / DASH_ESPERA))
     pygame.draw.rect(pant, (100, 200, 255), (10, 58, carga, 8))
     texto = fuente.render(f"Nivel: {nivel}   Puntaje: {puntaje}", True, (255, 255, 255))
     pant.blit(texto, (10, 10))
@@ -277,4 +305,9 @@ while corriendo:
     pygame.display.flip()
     reloj.tick(60)
 
+if estado == "jugando":
+    dur = (pygame.time.get_ticks() - t_ini) / 1000
+    esc.registrar(id_ses, "SESSION_END", score=puntaje, level=nivel,
+                  duration=round(dur, 1), result="quit")
+esc.cerrar()
 pygame.quit()
