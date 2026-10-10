@@ -12,6 +12,15 @@ reloj = pygame.time.Clock()
 fuente = pygame.font.Font(None, 28)
 fuente_g = pygame.font.Font(None, 64)
 
+
+def total_nivel(n):
+    return 3 + 2 * n
+
+
+def intervalo_nivel(n):
+    return max(30, 100 - 8 * n)
+
+
 jug = pygame.Rect(100, SUELO - 50, 36, 50)
 vel = 5
 vel_y = 0.0
@@ -39,6 +48,10 @@ enemigos = []
 disp_en = []
 t_spawn = 0
 puntaje = 0
+
+nivel = 1
+por_salir = total_nivel(1)
+t_aviso = 120
 
 estado = "jugando"
 causa = ""
@@ -82,20 +95,24 @@ while corriendo:
                 dash_t = 0
                 dash_cd = 0
                 t_spawn = 0
+                nivel = 1
+                por_salir = total_nivel(1)
+                t_aviso = 120
                 estado = "jugando"
                 t_ini = pygame.time.get_ticks()
 
     if estado == "muerto":
         pant.fill((20, 20, 40))
         lineas = [("GAME OVER", fuente_g), (f"Puntaje: {puntaje}", fuente),
+                  (f"Nivel alcanzado: {nivel}", fuente),
                   (f"Causa de muerte: {causa}", fuente),
                   (f"Tiempo: {dur:.1f} s", fuente),
                   ("Presiona R para reiniciar", fuente)]
-        y = 110
+        y = 90
         for txt, fte in lineas:
             img = fte.render(txt, True, (255, 255, 255))
             pant.blit(img, (ANCHO // 2 - img.get_width() // 2, y))
-            y += 55
+            y += 50
         pygame.display.flip()
         reloj.tick(60)
         continue
@@ -143,17 +160,23 @@ while corriendo:
             vivas.append(b)
     balas = vivas
 
-    t_spawn += 1
-    if t_spawn >= 90:
-        t_spawn = 0
-        lado = random.choice([0, ANCHO - 30])
-        if random.random() < 0.5:
-            enemigos.append({"tipo": "robot", "vel": 2, "muerto": False,
-                             "r": pygame.Rect(lado, SUELO - 30, 30, 30)})
-        else:
-            enemigos.append({"tipo": "dron", "vel": 3, "muerto": False,
-                             "cd": random.randint(30, 60),
-                             "r": pygame.Rect(lado, random.randint(120, 300), 30, 24)})
+    if t_aviso > 0:
+        t_aviso -= 1
+    else:
+        t_spawn += 1
+        if por_salir > 0 and t_spawn >= intervalo_nivel(nivel):
+            t_spawn = 0
+            por_salir -= 1
+            lado = random.choice([0, ANCHO - 30])
+            prob_dron = min(0.7, 0.3 + 0.05 * nivel)
+            if random.random() < prob_dron:
+                enemigos.append({"tipo": "dron", "vel": 3 + nivel // 4,
+                                 "muerto": False, "cd": random.randint(30, 60),
+                                 "r": pygame.Rect(lado, random.randint(120, 300), 30, 24)})
+            else:
+                enemigos.append({"tipo": "robot", "vel": 2 + nivel // 3,
+                                 "muerto": False,
+                                 "r": pygame.Rect(lado, SUELO - 30, 30, 30)})
 
     for e in enemigos:
         dx = jug.centerx - e["r"].centerx
@@ -216,6 +239,14 @@ while corriendo:
             restantes.append(e)
     enemigos = restantes
 
+    if (estado == "jugando" and por_salir == 0 and len(enemigos) == 0
+            and t_aviso == 0):
+        nivel += 1
+        puntaje += 200
+        por_salir = total_nivel(nivel)
+        t_spawn = 0
+        t_aviso = 120
+
     pant.fill((20, 20, 40))
     pygame.draw.rect(pant, (60, 60, 80), (0, SUELO, ANCHO, ALTO - SUELO))
     if dash_t > 0:
@@ -238,8 +269,11 @@ while corriendo:
     pygame.draw.rect(pant, (70, 70, 70), (10, 58, 140, 8))
     carga = 140 * (1 - dash_cd / DASH_ESPERA)
     pygame.draw.rect(pant, (100, 200, 255), (10, 58, carga, 8))
-    texto = fuente.render(f"Puntaje: {puntaje}", True, (255, 255, 255))
+    texto = fuente.render(f"Nivel: {nivel}   Puntaje: {puntaje}", True, (255, 255, 255))
     pant.blit(texto, (10, 10))
+    if t_aviso > 0:
+        img = fuente_g.render(f"NIVEL {nivel}", True, (255, 255, 255))
+        pant.blit(img, (ANCHO // 2 - img.get_width() // 2, 150))
     pygame.display.flip()
     reloj.tick(60)
 
