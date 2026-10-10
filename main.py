@@ -6,6 +6,7 @@ from telemetria import EscritorBitacora
 from juego import jugar, ANCHO, ALTO
 from stats_ui import pantalla_stats
 
+TITULO = "MEGAMAN" # Provisional 
 N_BUF = 10
 DIFICULTADES = ["easy", "normal", "hard"]
 
@@ -50,7 +51,7 @@ async def menu(pant):
                 elif ev.key == pygame.K_RETURN:
                     return opciones[sel]
         pant.fill((20, 20, 40))
-        t = fuente_g.render("MEGAMAN", True, (60, 140, 255))
+        t = fuente_g.render(TITULO, True, (60, 140, 255))
         pant.blit(t, (ANCHO // 2 - t.get_width() // 2, 70))
         for i, op in enumerate(opciones):
             r = rects[i]
@@ -72,7 +73,6 @@ async def pantalla_config(pant, cfg):
     reloj = pygame.time.Clock()
     fuente = pygame.font.Font(None, 36)
     fuente_g = pygame.font.Font(None, 56)
-    fuente_p = pygame.font.Font(None, 24)
     filas = []
     for i in range(3):
         filas.append(pygame.Rect(200, 150 + i * 55, 400, 44))
@@ -133,10 +133,6 @@ async def pantalla_config(pant, cfg):
         img = fuente.render("Volver", True, (255, 255, 255))
         pant.blit(img, (r_volver.centerx - img.get_width() // 2,
                         r_volver.centery - img.get_height() // 2))
-        ayuda = fuente_p.render(
-            "Clic en la mitad izq/der de una fila para cambiarla. Player: escribe con el teclado.",
-            True, (150, 150, 170))
-        pant.blit(ayuda, (ANCHO // 2 - ayuda.get_width() // 2, 400))
         pygame.display.flip()
         reloj.tick(60)
         await asyncio.sleep(0)
@@ -145,7 +141,7 @@ async def pantalla_config(pant, cfg):
 async def main():
     pygame.init()
     pant = pygame.display.set_mode((ANCHO, ALTO))
-    pygame.display.set_caption("Megaman")
+    pygame.display.set_caption(TITULO)
     cfg = config.cargar()
     esc = EscritorBitacora("logs", n_buf=N_BUF)
     while True:
