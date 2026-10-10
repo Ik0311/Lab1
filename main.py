@@ -4,8 +4,21 @@ import pygame
 import config
 from telemetria import EscritorBitacora
 from juego import jugar, ANCHO, ALTO
+from stats_ui import pantalla_stats
 
 N_BUF = 10
+DIFICULTADES = ["easy", "normal", "hard"]
+
+
+def cambiar(cfg, fila, d):
+    if fila == 1:
+        cfg["volume"] = max(0, min(100, cfg["volume"] + 10 * d))
+    elif fila == 2:
+        i = 1
+        if cfg["difficulty"] in DIFICULTADES:
+            i = DIFICULTADES.index(cfg["difficulty"])
+        i = max(0, min(2, i + d))
+        cfg["difficulty"] = DIFICULTADES[i]
 
 
 async def menu(pant):
@@ -13,11 +26,22 @@ async def menu(pant):
     fuente = pygame.font.Font(None, 40)
     fuente_g = pygame.font.Font(None, 72)
     opciones = ["Start Game", "Statistics", "Settings", "Quit"]
+    rects = []
+    for i in range(len(opciones)):
+        rects.append(pygame.Rect(ANCHO // 2 - 130, 185 + i * 50, 260, 42))
     sel = 0
     while True:
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
                 return "Quit"
+            if ev.type == pygame.MOUSEMOTION:
+                for i, r in enumerate(rects):
+                    if r.collidepoint(ev.pos):
+                        sel = i
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                for i, r in enumerate(rects):
+                    if r.collidepoint(ev.pos):
+                        return opciones[i]
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_UP:
                     sel = (sel - 1) % len(opciones)
@@ -29,9 +53,16 @@ async def menu(pant):
         t = fuente_g.render("MEGAMAN", True, (60, 140, 255))
         pant.blit(t, (ANCHO // 2 - t.get_width() // 2, 70))
         for i, op in enumerate(opciones):
-            color = (255, 220, 80) if i == sel else (200, 200, 200)
+            r = rects[i]
+            if i == sel:
+                pygame.draw.rect(pant, (45, 45, 90), r)
+                pygame.draw.rect(pant, (255, 220, 80), r, 2)
+                color = (255, 220, 80)
+            else:
+                color = (200, 200, 200)
             img = fuente.render(op, True, color)
-            pant.blit(img, (ANCHO // 2 - img.get_width() // 2, 190 + i * 50))
+            pant.blit(img, (r.centerx - img.get_width() // 2,
+                            r.centery - img.get_height() // 2))
         pygame.display.flip()
         reloj.tick(60)
         await asyncio.sleep(0)
@@ -41,13 +72,29 @@ async def pantalla_config(pant, cfg):
     reloj = pygame.time.Clock()
     fuente = pygame.font.Font(None, 36)
     fuente_g = pygame.font.Font(None, 56)
-    dificultades = ["easy", "normal", "hard"]
+    fuente_p = pygame.font.Font(None, 24)
+    filas = []
+    for i in range(3):
+        filas.append(pygame.Rect(200, 150 + i * 55, 400, 44))
+    r_volver = pygame.Rect(ANCHO // 2 - 80, 335, 160, 42)
     sel = 0
     while True:
         for ev in pygame.event.get():
             if ev.type == pygame.QUIT:
                 config.guardar(cfg)
                 return
+            if ev.type == pygame.MOUSEBUTTONDOWN and ev.button == 1:
+                if r_volver.collidepoint(ev.pos):
+                    config.guardar(cfg)
+                    return
+                for i, r in enumerate(filas):
+                    if r.collidepoint(ev.pos):
+                        sel = i
+                        if i > 0:
+                            if ev.pos[0] < r.centerx:
+                                cambiar(cfg, i, -1)
+                            else:
+                                cambiar(cfg, i, 1)
             if ev.type == pygame.KEYDOWN:
                 if ev.key == pygame.K_ESCAPE:
                     config.guardar(cfg)
@@ -61,50 +108,35 @@ async def pantalla_config(pant, cfg):
                         cfg["player"] = cfg["player"][:-1]
                     elif ev.unicode.isalnum() and len(cfg["player"]) < 12:
                         cfg["player"] += ev.unicode
-                elif sel == 1:
-                    if ev.key == pygame.K_LEFT:
-                        cfg["volume"] = max(0, cfg["volume"] - 10)
-                    elif ev.key == pygame.K_RIGHT:
-                        cfg["volume"] = min(100, cfg["volume"] + 10)
-                elif sel == 2:
-                    i = 1
-                    if cfg["difficulty"] in dificultades:
-                        i = dificultades.index(cfg["difficulty"])
-                    if ev.key == pygame.K_LEFT:
-                        i = max(0, i - 1)
-                    elif ev.key == pygame.K_RIGHT:
-                        i = min(2, i + 1)
-                    cfg["difficulty"] = dificultades[i]
+                elif ev.key == pygame.K_LEFT:
+                    cambiar(cfg, sel, -1)
+                elif ev.key == pygame.K_RIGHT:
+                    cambiar(cfg, sel, 1)
         pant.fill((20, 20, 40))
         t = fuente_g.render("SETTINGS", True, (255, 255, 255))
         pant.blit(t, (ANCHO // 2 - t.get_width() // 2, 60))
-        filas = [f"Player: {cfg['player']}", f"Volume: {cfg['volume']}",
-                 f"Difficulty: {cfg['difficulty']}"]
-        for i, txt in enumerate(filas):
-            color = (255, 220, 80) if i == sel else (200, 200, 200)
+        textos = [f"Player: {cfg['player']}",
+                  f"<   Volume: {cfg['volume']}   >",
+                  f"<   Difficulty: {cfg['difficulty']}   >"]
+        for i, txt in enumerate(textos):
+            r = filas[i]
+            if i == sel:
+                pygame.draw.rect(pant, (45, 45, 90), r)
+                pygame.draw.rect(pant, (255, 220, 80), r, 2)
+                color = (255, 220, 80)
+            else:
+                color = (200, 200, 200)
             img = fuente.render(txt, True, color)
-            pant.blit(img, (250, 160 + i * 50))
-        ayuda = pygame.font.Font(None, 24).render(
-            "Arriba/abajo: elegir   Izq/der: cambiar   Esc: guardar y volver",
+            pant.blit(img, (r.centerx - img.get_width() // 2,
+                            r.centery - img.get_height() // 2))
+        pygame.draw.rect(pant, (60, 140, 255), r_volver)
+        img = fuente.render("Volver", True, (255, 255, 255))
+        pant.blit(img, (r_volver.centerx - img.get_width() // 2,
+                        r_volver.centery - img.get_height() // 2))
+        ayuda = fuente_p.render(
+            "Clic en la mitad izq/der de una fila para cambiarla. Player: escribe con el teclado.",
             True, (150, 150, 170))
-        pant.blit(ayuda, (ANCHO // 2 - ayuda.get_width() // 2, 380))
-        pygame.display.flip()
-        reloj.tick(60)
-        await asyncio.sleep(0)
-
-
-async def pantalla_stats(pant):
-    reloj = pygame.time.Clock()
-    fuente = pygame.font.Font(None, 40)
-    while True:
-        for ev in pygame.event.get():
-            if ev.type == pygame.QUIT:
-                return
-            if ev.type == pygame.KEYDOWN and ev.key == pygame.K_ESCAPE:
-                return
-        pant.fill((20, 20, 40))
-        img = fuente.render("Statistics (proximamente)   Esc: volver", True, (255, 255, 255))
-        pant.blit(img, (ANCHO // 2 - img.get_width() // 2, 200))
+        pant.blit(ayuda, (ANCHO // 2 - ayuda.get_width() // 2, 400))
         pygame.display.flip()
         reloj.tick(60)
         await asyncio.sleep(0)
@@ -123,7 +155,8 @@ async def main():
             if res == "salir":
                 break
         elif op == "Statistics":
-            await pantalla_stats(pant)
+            esc.vaciar()
+            await pantalla_stats(pant, "logs")
         elif op == "Settings":
             await pantalla_config(pant, cfg)
         else:
