@@ -1,0 +1,24 @@
+EXPERIMENTO A: escritura de 100000 eventos (promedio de 3 corridas)
+  Buffer   Tiempo (s)
+       1       12.367
+      10        1.639
+     100        0.351
+    1000        0.200
+
+EXPERIMENTO B: rendimiento de lectura
+ Eventos  T. lectura (s)    Eventos/s  us por linea
+    5000           0.020       247624          4.04
+   50000           0.150       332887          3.00
+  100000           0.275       363000          2.75
+
+EXPERIMENTO C: lectura perezosa contra carga completa
+ Eventos  T. perezosa (s)  T. lista (s)  Mem. perezosa (KiB)  Mem. lista (KiB)
+    5000            0.020         0.014                154.6            3363.4
+   50000            0.150         0.121                160.5           32536.8
+  100000            0.275         0.244                167.7           64884.0
+
+TABLA RESUMEN
+ Eventos  Archivo (KiB)  T. escritura (s)  T. lectura (s)  Eventos/s  Mem. perezosa (KiB)  Mem. lista (KiB)
+    5000          267.3             0.019           0.020     247624                154.6            3363.4
+   50000         2668.9             0.215           0.150     332887                160.5           32536.8
+  100000         5341.7             0.423           0.275     363000                167.7           64884.0
