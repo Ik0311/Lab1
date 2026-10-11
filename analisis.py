@@ -1,7 +1,11 @@
+import sys
+
 from lector import iter_events
 from estadistica import (Descriptivas, Frecuencias, Correlacion, Embudo,
                          PorDificultad, Histograma, cuartiles, percentil,
                          atipicos_iqr, atipicos_z)
+
+MAX_PTS = 500
 
 
 def analizar(carpeta):
@@ -14,7 +18,11 @@ def analizar(carpeta):
     por_dif = PorDificultad()
     r_dur_punt = Correlacion()
     r_dano_niv = Correlacion()
-    puntajes = []   # unica lista que crece: la piden la mediana y los cuartiles
+    puntajes = []   # estas tres listas las piden la mediana y los cuartiles
+    dur_l = []
+    dano_l = []
+    pares1 = []     # muestra de puntos para dibujar, maximo MAX_PTS
+    pares2 = []
     dif_de = {}     # dificultad de las sesiones abiertas
     dano_de = {}    # dano acumulado de las sesiones abiertas
 
@@ -29,6 +37,7 @@ def analizar(carpeta):
         elif tipo == "DAMAGE_TAKEN":
             if "amount" in p:
                 d_dano.agregar(p["amount"])
+                dano_l.append(p["amount"])
                 if ses in dano_de:
                     dano_de[ses] += p["amount"]
         elif tipo == "PLAYER_DEATH":
@@ -39,12 +48,17 @@ def analizar(carpeta):
                 d_punt.agregar(p["score"])
                 d_dur.agregar(p["duration"])
                 puntajes.append(p["score"])
+                dur_l.append(p["duration"])
                 embudo.agregar(p["level"])
                 r_dur_punt.agregar(p["duration"], p["score"])
+                if len(pares1) < MAX_PTS:
+                    pares1.append((p["duration"], p["score"]))
                 if ses in dif_de:
                     por_dif.agregar(dif_de[ses], p["score"])
                 if ses in dano_de:
                     r_dano_niv.agregar(dano_de[ses], p["level"])
+                    if len(pares2) < MAX_PTS:
+                        pares2.append((dano_de[ses], p["level"]))
             dif_de.pop(ses, None)
             dano_de.pop(ses, None)
 
@@ -61,7 +75,8 @@ def analizar(carpeta):
     res = {"rep": rep, "punt": d_punt, "dur": d_dur, "dano": d_dano,
            "causas": causas, "embudo": embudo, "dif": por_dif,
            "r1": r_dur_punt, "r2": r_dano_niv, "hist": hist,
-           "puntajes": puntajes}
+           "puntajes": puntajes, "dur_l": dur_l, "dano_l": dano_l,
+           "pares1": pares1, "pares2": pares2}
     if len(puntajes) >= 4:
         res["cuart"] = cuartiles(puntajes)
         res["p90"] = percentil(puntajes, 90)
@@ -113,4 +128,7 @@ def mostrar(res):
 
 
 if __name__ == "__main__":
-    mostrar(analizar("logs_sint"))
+    carpeta = "logs_sint"
+    if len(sys.argv) > 1:
+        carpeta = sys.argv[1]
+    mostrar(analizar(carpeta))
