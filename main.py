@@ -7,7 +7,7 @@ from juego import jugar, ANCHO, ALTO
 from stats_ui import pantalla_stats
 
 TITULO = "MEGAMAN" # Provisional 
-N_BUF = 10
+N_BUF = 100
 DIFICULTADES = ["easy", "normal", "hard"]
 
 
