@@ -4,6 +4,14 @@ import pygame
 from analisis import analizar
 from estadistica import mediana_de, percentil
 
+def analizar_seguro(carpeta):
+    try:
+        return analizar(carpeta)
+    except Exception as e:
+        print("Error al calcular las estadisticas:", repr(e))
+        return analizar("carpeta_que_no_existe")
+
+
 ANCHO = 800
 ALTO = 450
 PESTANAS = ["Resumen", "Distribucion", "Relacion"]
@@ -233,7 +241,7 @@ async def pantalla_stats(pant, carpeta):
     fuente = pygame.font.Font(None, 32)
     fuente_t = pygame.font.Font(None, 28)
     fuente_p = pygame.font.Font(None, 20)
-    res = analizar(carpeta)
+    res = analizar_seguro(carpeta)
     pestana = 0
     var = 0
     par = 0

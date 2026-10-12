@@ -30,6 +30,8 @@ class Descriptivas:
         return math.sqrt(self.varianza())
 
     def cv(self):
+        if self.media() == 0:
+            return 0.0  
         return self.desv() / self.media() * 100
 
 
