@@ -5,8 +5,9 @@ import config
 from telemetria import EscritorBitacora
 from juego import jugar, ANCHO, ALTO
 from stats_ui import pantalla_stats
+from web import copiar_bitacora_web
 
-TITULO = "MEGAMAN" # Provisional 
+TITULO = "MEGAMAN"
 N_BUF = 100
 DIFICULTADES = ["easy", "normal", "hard"]
 
@@ -142,6 +143,7 @@ async def main():
     pygame.init()
     pant = pygame.display.set_mode((ANCHO, ALTO))
     pygame.display.set_caption(TITULO)
+    copiar_bitacora_web()
     cfg = config.cargar()
     esc = EscritorBitacora("logs", n_buf=N_BUF)
     while True:
