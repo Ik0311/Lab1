@@ -13,3 +13,16 @@ Versión web: python -m pygbag . y abrir http://localhost:8000
 telemetria.py es el módulo telemetry del enunciado y estadistica.py es el statistics_engine.
 
 Problema conocido en la web: abrir Statistics justo después de abandonar una partida con Esc puede congelar la página.
+
+para hacer pruebas
+cd ..
+git clone https://github.com/Ik0311/Lab1.git Lab1_prueba
+cd Lab1_prueba
+python main.py
+python prueba_estadistica.py
+python prueba_estadistica2.py
+python prueba_estadistica3.py
+
+leer logs en streaming
+Get-Content logs\events_001.log -Wait -Tail 5
+Get-Content config.json
