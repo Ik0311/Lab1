@@ -13,7 +13,7 @@ Versión web: python -m pygbag . y abrir http://localhost:8000
 telemetria.py es el módulo telemetry del enunciado y estadistica.py es el statistics_engine.
 
 Ejecutar versión web
-python -m pybag .
+python -m pygbag .
 
 para hacer pruebas
 cd ..
