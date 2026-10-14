@@ -28,6 +28,9 @@ para ver eventos en vivo en la terminal
 Get-Content logs\events_001.log -Wait -Tail 5
 Get-Content config.json
 
+para inyectar líneas corruptas
+python demo_corruptas.py
+
 
 Problemas conocidos 
 -en la web: abrir Statistics justo después de abandonar una partida con Esc puede congelar la página.
